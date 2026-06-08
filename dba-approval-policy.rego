@@ -1,39 +1,38 @@
 package env0
 
-import future.keywords.in
-import future.keywords.if
+default database_changed := false
+default approved_by_dba := false
 
 protected_resource := "null_resource.database"
 required_team      := "DBA"
 
-# True if the plan changes the protected resource
-database_changed if {
-    some rc in input.plan.resource_changes
+# A real change to the protected resource
+database_changed {
+    rc := input.plan.resource_changes[_]
     rc.address == protected_resource
-    some action in rc.change.actions
-    action != "no-op"
+    rc.change.actions[_] != "no-op"
 }
 
-# True if an approver belongs to the DBA team
-approved_by_dba if {
-    some approver in input.approvers
-    some team in approver.teams
+# An approver from the DBA team has approved
+approved_by_dba {
+    team := input.approvers[_].teams[_]
     team.name == required_team
 }
 
 # Database changed, DBA has not approved yet -> hold
-pending["Changes to the database require approval from the DBA team"] if {
+pending[reason] {
     database_changed
     not approved_by_dba
+    reason := "Changes to the database require approval from the DBA team"
 }
 
 # Database changed and DBA approved -> proceed
-allow if {
+allow {
     database_changed
     approved_by_dba
 }
 
 # Database untouched -> no special gate
-allow if {
+allow {
     not database_changed
 }
