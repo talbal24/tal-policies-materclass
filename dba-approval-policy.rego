@@ -27,12 +27,14 @@ pending[reason] {
 }
 
 # Database changed and DBA approved -> proceed
-allow {
+allow[reason] {
     database_changed
     approved_by_dba
+    reason := "Approved by DBA team"
 }
 
 # Database untouched -> no special gate
-allow {
+allow[reason] {
     not database_changed
+    reason := "No database change, no DBA approval required"
 }
