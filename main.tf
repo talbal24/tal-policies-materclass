@@ -1,33 +1,38 @@
-terraform {
-  required_providers {
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.2"
-    }
-  }
+package env0
+
+default database_changed := false
+default approved_by_dba := false
+
+protected_resource := "null_resource.database"
+required_team      := "DBA"
+
+# A real change to the protected resource
+database_changed {
+    rc := input.plan.resource_changes[_]
+    rc.address == protected_resource
+    rc.change.actions[_] != "no-op"
 }
 
-variable "database_version" {
-  type    = string
-  default = "v1"
+# An approver from the DBA team has approved
+approved_by_dba {
+    team := input.approvers[_].teams[_]
+    team.name == required_team
 }
 
-variable "app_version" {
-  type    = string
-  default = "v1"
+# Database changed, DBA has not approved yet -> hold
+pending[reason] {
+    database_changed
+    not approved_by_dba
+    reason := "Changes to the database require approval from the DBA team"
 }
 
-# PROTECTED: changing this resource requires approval from the DBA team.
-# Bump database_version (v1 -> v2) to trigger a change in the demo.
-resource "null_resource" "database" {
-  triggers = {
-    version = var.database_version
-  }
+# Database changed and DBA approved -> proceed
+allow {
+    database_changed
+    approved_by_dba
 }
 
-# NOT PROTECTED: anyone can change this and any deployer can approve.
-resource "null_resource" "app" {
-  triggers = {
-    version = var.app_version
-  }
+# Database untouched -> no special gate
+allow {
+    not database_changed
 }
