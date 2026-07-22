@@ -9,7 +9,7 @@ terraform {
 
 variable "database_version" {
   type    = string
-  default = "v1"
+  default = "v2"
 }
 
 variable "app_version" {
